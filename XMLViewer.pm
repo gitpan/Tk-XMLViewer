@@ -1,7 +1,7 @@
 # -*- perl -*-
 
 #
-# $Id: XMLViewer.pm,v 1.29 2003/04/26 23:34:49 eserte Exp $
+# $Id: XMLViewer.pm,v 1.33 2003/11/12 20:46:13 eserte Exp $
 # Author: Slaven Rezic
 #
 # Copyright © 2000, 2003 Slaven Rezic. All rights reserved.
@@ -25,10 +25,11 @@ use XML::Parser;
 
 Construct Tk::Widget 'XMLViewer';
 
-$VERSION = '0.15';
+$VERSION = '0.16';
 
 my($curr_w); # ugly, but probably faster than defining handlers for everything
 my $indent_width = 32;
+my $use_elide = $Tk::VERSION < 800 || $Tk::VERSION == 804.025;
 
 sub SetIndent {
     my $w = shift;
@@ -74,8 +75,6 @@ sub insertXML {
     $w->Busy();
     my(%args) = @_;
     my $p1 = new XML::Parser(Style => "Stream",
-			     # XXX check!
-			     #XXX nonono! ($Tk::VERSION < 804 ? (ProtocolEncoding => 'UTF-8') : ()),
 			     Handlers => {
   				 Comment => \&hComment,
   				 XMLDecl => \&hDecl,
@@ -274,24 +273,24 @@ sub ShowHideRegion {
     my(@old_tags) = $w->tagNames("showhidemarkbegin");
     $w->delete("showhidemarkbegin", "showhidemarkend");
     if (!exists $args{-open}) {
-	if ($Tk::VERSION > 800) {
-	    $args{-open} = $w->tagCget("region" . $region, '-state') eq 'hidden';
-	} else {
+	if ($use_elide) {
 	    $args{-open} = $w->tagCget("region" . $region, '-elide');
+	} else {
+	    $args{-open} = $w->tagCget("region" . $region, '-state') eq 'hidden';
 	}
     }
     if ($args{-open}) {
 	$w->imageCreate("showhidemarkbegin",
 			-image => $w->{'MinusImage'});
 	$w->tagConfigure("region" . $region,
-			 $Tk::VERSION > 800 ? (-state => '')
-			                    : (-elide => undef));
+			 $use_elide ? (-elide => undef)
+			            : (-state => ''));
     } else {
 	$w->imageCreate("showhidemarkbegin",
 			-image => $w->{'PlusImage'});
 	$w->tagConfigure("region" . $region,
-			 $Tk::VERSION > 800 ? (-state => 'hidden')
-			                    : (-elide => 1));
+			 $use_elide ? (-elide => 1)
+			            : (-state => 'hidden'));
     }
     # restore old tags for minus/plus image
     foreach my $tag (@old_tags) {
@@ -436,7 +435,11 @@ sub XMLMenu {
     }
 }
 
-if ($] >= 5.006001) {
+if ($Tk::VERSION >= 803) { # native unicode support
+    eval <<'EOF';
+sub _convert_from_unicode { $_[0] }
+EOF
+} elsif ($] >= 5.006001) {
     # tr translator for unicode not available anymore
     eval <<'EOF';
 sub _convert_from_unicode {
@@ -626,12 +629,20 @@ Elements for DOCTYPE: Name Sysid Pubid Internal
 
 =back
 
-=head1 BUGS
+=head1 NOTES
 
-Perl/Tk does not support Unicode, yet. For perl 5.6.0 and newer,
-unicode characters are translated to ISO-8859-1 chars, if possible.
-For older perls, there is no conversion (unless Unicode::String is
-installed), so unicode characters will show as binary values.
+=head2 Unicode
+
+Perl/Tk 800 does not support Unicode. In this case C<Tk::XMLViewer>
+tries to translate all characters returned by the XML parser to the
+C<iso-8859-1> charset. This may be done with a builtin function like
+C<pack>/C<unpack> or a CPAN module like L<Unicode::String>. If no
+fallback could be found, then unicode characters show as binary
+values.
+
+Perl/Tk 804 has Unicode support.
+
+=head1 BUGS
 
 DumpXML will not work with nested text tags.
 

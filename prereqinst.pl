@@ -1,9 +1,10 @@
-#!/usr/perl5.8.0/bin/perl5.8.0
+#!/usr/bin/env perl
+##!/usr/perl5.8.0/bin/perl5.8.0
 # -*- perl -*-
 #
 # DO NOT EDIT, created automatically by
 # /home/e/eserte/bin/sh/mkprereqinst
-# on Sun Apr 27 01:32:46 2003
+# on Fri Aug  1 15:01:59 2003
 #
 # The latest version of mkprereqinst may be found at
 # http://www.perl.com/CPAN-local/authors/id/S/SR/SREZIC/
@@ -17,6 +18,8 @@ if (!GetOptions("ppm"  => sub { $use = 'ppm'  },
 	       )) {
     die "usage: $0 [-ppm | -cpan]\n";
 }
+
+$ENV{FTP_PASSIVE} = 1;
 
 if ($use eq 'ppm') {
     require PPM;

@@ -16,11 +16,20 @@ WriteMakefile(
 );
 
 sub MY::postamble {
+    my $postamble = <<'EOF';
+demo :: pure_all
+	$(FULLPERL) -w -Mblib test.pl -demo
+
+EOF
+
     if (defined $ENV{USER} && $ENV{USER} eq 'eserte') {
-	<<'EOF';
-release :: dist
-	cpan-upload $(DISTVNAME).tar$(SUFFIX)
+	$postamble .= <<'EOF';
+
+.include "../../perl.release.mk"
+.include "../../perl.cvs.mk"
 
 EOF
     }
+
+    $postamble;
 }
