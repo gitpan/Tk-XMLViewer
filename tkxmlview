@@ -2,33 +2,36 @@
 # -*- perl -*-
 
 #
-# $Id: tkxmlview,v 1.7 2001/04/29 09:11:19 eserte Exp $
+# $Id: tkxmlview,v 1.11 2003/04/26 23:37:53 eserte Exp $
 # Author: Slaven Rezic
 #
-# Copyright (C) 2000 Slaven Rezic. All rights reserved.
+# Copyright (C) 2000, 2003 Slaven Rezic. All rights reserved.
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
 #
-# Mail: eserte@cs.tu-berlin.de
-# WWW:  http://user.cs.tu-berlin.de/~eserte/
+# Mail: slaven@rezic.de
+# WWW:  http://www.rezic.de/eserte
 #
 
 use Tk;
 use Tk::XMLViewer;
 use Getopt::Long;
+use strict;
 
 my $indent;
 my $mainbg;
+my $ua;
 
-$top = new MainWindow;
+my $top = new MainWindow;
 
 GetOptions("indent=i" => \$indent,
 	   "mainbg=s" => \$mainbg,
 	  );
 
+my $string;
 my $file = shift;
-$xmlviewer = $top->Scrolled("XMLViewer", -scrollbars => "osw"
-			   )->pack(-expand => 1, -fill => "both");
+my $xmlviewer = $top->Scrolled("XMLViewer", -scrollbars => "osw"
+			      )->pack(-expand => 1, -fill => "both");
 $xmlviewer->configure(-background => $mainbg) if defined $mainbg;
 $xmlviewer->SetIndent($indent) if defined $indent;
 $xmlviewer->XMLMenu;
@@ -38,10 +41,14 @@ if ($xmlviewer->can("menu")) {
 	my $filemenu = $textmenu->entrycget(0, -menu);
 	$filemenu->command(-label => 'Open',
 			   -command => sub { openxml(); viewxml() });
+	if (eval { require LWP::UserAgent }) {
+	    $filemenu->command(-label => "Open URL",
+			       -command => sub { guiopenurl() });
+	}
 	$filemenu->command(-label => 'Re-Open',
 			   -command => sub {
 			       if ($xmlviewer->SourceType eq 'file'){
-				   viewxml();
+				   open_file_or_url();
 			       }
 			   });
 
@@ -91,11 +98,22 @@ if ($xmlviewer->can("menu")) {
 			   });
     }
 }
+
 if (!defined $file) {
-    openxml();
+    openxml(); viewxml();
+} else {
+    open_file_or_url();
 }
-viewxml();
+
 MainLoop;
+
+sub open_file_or_url {
+    if ($file =~ /^(http|https|file|ftp):/) {
+	openandviewurl();
+    } else {
+	viewxml();
+    }
+}
 
 sub openxml {
     my $dir;
@@ -106,6 +124,34 @@ sub openxml {
 					     ['All Files', '*']],
 			      (defined $dir ? (-initialdir => $dir) : ()),
 			     );
+}
+
+sub guiopenurl {
+    # XXX Dialog?
+    my $t = $top->Toplevel(-title => "Open URL");
+    $t->transient($top);
+    my $e;
+    my $continue = 0;
+    my $url;
+    Tk::grid(
+	     $t->Label(-text => "URL:"),
+	     $e = $t->Entry(-textvariable => \$url),
+	     $t->Button(-text => "OK",
+			-command => sub { $continue = 1 }),
+	     $t->Button(-text => "Cancel",
+			-command => sub { $continue = -1 }),
+	    );
+    $e->bind("<Return>" => sub { $continue = 1 });
+    $e->bind("<Escape>" => sub { $continue = -1 });
+    $e->focus;
+    $t->waitVariable(\$continue);
+    $t->destroy if Tk::Exists($t);
+    if ($continue == 1) {
+	$file = $url;
+	return openandviewurl();
+    } else {
+	0;
+    }
 }
 
 sub viewxml {
@@ -128,6 +174,28 @@ sub viewxml {
 	$xmlviewer->delete("1.0", "end");
 	$xmlviewer->insertXML(-file => $file);
     }
+}
+
+sub openandviewurl {
+    my($url) = $file;
+
+    if (!$ua) {
+	$ua = LWP::UserAgent->new(env_proxy => 1);
+    }
+    my $resp = $ua->get($url);
+    if (!$resp->is_success) {
+	$top->messageBox(-title => "Error",
+			 -text => "GET was not successful: " . $resp->code,
+			 -icon => "error",
+			);
+	return 0;
+    }
+
+    $top->title("XMLView: ".$url);
+    $xmlviewer->delete("1.0", "end");
+    $xmlviewer->insertXML(-text => $resp->content);
+
+    1;
 }
 
 __END__
