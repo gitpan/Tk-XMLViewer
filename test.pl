@@ -29,7 +29,12 @@ $t2 = $top->Toplevel;
 $t2->withdraw;
 
 $xmlwidget = $top->Scrolled('XMLViewer',
+			    -tagcolor => 'blue',
 			    -scrollbars => "osoe")->pack;
+
+$xmlwidget->tagConfigure('xml_comment', -foreground => "white",
+			 -background => "red", -font => "Helvetica 6");
+
 $xmlwidget->insertXML(-file => $file);
 $xmlwidget->XMLMenu;
 
@@ -103,6 +108,10 @@ my $okb = $f->Button(-text => "OK",
 $okb->focus;
 $f->Button(-text => "Not OK",
 	   -command => sub { $not = "not "; })->pack(-side => "left");
+
+if ($ENV{BATCH}) {
+    $top->after(1000, sub { $not = "" });
+}
 
 $top->update;
 $top->waitVariable(\$not);

@@ -1,7 +1,7 @@
 # -*- perl -*-
 
 #
-# $Id: XMLViewer.pm,v 1.24 2001/04/29 09:10:30 eserte Exp $
+# $Id: XMLViewer.pm,v 1.28 2002/02/28 20:37:44 eserte Exp $
 # Author: Slaven Rezic
 #
 # Copyright © 2000 Slaven Rezic. All rights reserved.
@@ -20,12 +20,12 @@ require Tk::Pixmap;
 use strict;
 use vars qw($VERSION);
 
-use base qw(Tk::ROText);
+use base qw(Tk::Derived Tk::ROText);
 use XML::Parser;
 
 Construct Tk::Widget 'XMLViewer';
 
-$VERSION = '0.13';
+$VERSION = '0.14';
 
 my($curr_w); # ugly, but probably faster than defining handlers for everything
 my $indent_width = 32;
@@ -36,23 +36,29 @@ sub SetIndent {
     $indent_width = $arg;
 }
 
-sub InitObject {
+sub Populate {
     my($w,$args) = @_;
-    $w->SUPER::InitObject($args);
+    $w->SUPER::Populate($args);
     $w->configure(-wrap   => 'word',
 		  -cursor => 'left_ptr');
+
+    my $tagcolor     = delete $args->{-tagcolor}     || 'red';
+    my $attrkeycolor = delete $args->{-attrkeycolor} || 'green4';
+    my $attrvalcolor = delete $args->{-attrvalcolor} || 'DarkGreen';
+    my $commentcolor = delete $args->{-commentcolor} || 'gold2';
+
     $w->tagConfigure('xml_tag',
-		     -foreground => 'red',
+		     -foreground => $tagcolor,
 		     #-font => 'boldXXX',
 		     );
     $w->tagConfigure('xml_attrkey',
-		     -foreground => 'green4',
+		     -foreground => $attrkeycolor,
 		     );
     $w->tagConfigure('xml_attrval',
-		     -foreground => 'DarkGreen',
+		     -foreground => $attrvalcolor,
 		     );
     $w->tagConfigure('xml_comment',
-		     -foreground => 'gold2',
+		     -foreground => $commentcolor,
 		     );
     $w->{IndentTags}  = [];
     $w->{RegionCount} = 0;
@@ -68,6 +74,7 @@ sub insertXML {
     $w->Busy();
     my(%args) = @_;
     my $p1 = new XML::Parser(Style => "Stream",
+			     ProtocolEncoding => 'UTF-8',
 			     Handlers => {
   				 Comment => \&hComment,
   				 XMLDecl => \&hDecl,
@@ -420,40 +427,41 @@ sub XMLMenu {
     }
 }
 
-if ($] >= 5.006001) {
-    # tr translator for unicode not available anymore
-    eval <<'EOF';
-sub _convert_from_unicode {
-    pack("C*", unpack("U*", $_[0]));
-}
-EOF
-} elsif ($] >= 5.006) {
-    # unicode translator available
-    eval <<'EOF';
-sub _convert_from_unicode {
-    $_[0] =~ tr/\0-\x{FF}//UC;
-    $_[0];
-}
-EOF
-} else {
-    # try Unicode::String
-    eval <<'EOF';
-require Unicode::String;
-EOF
-    if (!$@) {
-	eval <<'EOF';
-sub _convert_from_unicode {
-    my $umap = Unicode::String::utf8( $_[0]);
-    $umap->latin1;
-}
-EOF
-    } else { # do nothing
-        eval <<'EOF';
-require Unicode::String;
 sub _convert_from_unicode { $_[0] }
-EOF
-    }
-}
+#  if ($] >= 5.006001) {
+#      # tr translator for unicode not available anymore
+#      eval <<'EOF';
+#  sub _convert_from_unicode {
+#      pack("C*", unpack("U*", $_[0]));
+#  }
+#  EOF
+#  } elsif ($] >= 5.006) {
+#      # unicode translator available
+#      eval <<'EOF';
+#  sub _convert_from_unicode {
+#      $_[0] =~ tr/\0-\x{FF}//UC;
+#      $_[0];
+#  }
+#  EOF
+#  } else {
+#      # try Unicode::String
+#      eval <<'EOF';
+#  require Unicode::String;
+#  EOF
+#      if (!$@) {
+#  	eval <<'EOF';
+#  sub _convert_from_unicode {
+#      my $umap = Unicode::String::utf8( $_[0]);
+#      $umap->latin1;
+#  }
+#  EOF
+#      } else { # do nothing
+#          eval <<'EOF';
+#  require Unicode::String;
+#  sub _convert_from_unicode { $_[0] }
+#  EOF
+#      }
+#  }
 
 sub SourceType    { $_[0]->{Source} && $_[0]->{Source}[0] }
 sub SourceContent { $_[0]->{Source} && $_[0]->{Source}[1] }
@@ -518,7 +526,41 @@ Tk::XMLViewer is an widget inherited from Tk::Text which displays XML
 in a hierarchical tree. You can use the plus and minus buttons to
 hide/show parts of the tree.
 
-=head1 METHODS
+=head2 OPTIONS
+
+C<Tk::XMLViewer> supports all option of C<Tk::Text> and additionally
+the following:
+
+=over
+
+=item -tagcolor => $color
+
+Foreground color of tags.
+
+=item -attrkeycolor => $color
+
+Foreground color of attribute keys.
+
+=item -attrvalcolor => $color
+
+Foreground color of attribute values.
+
+=item -commentcolor => $color
+
+Foreground color of comment sections.
+
+=back
+
+The text tags C<xml_tag>, C<xml_attrkey>, C<xml_attrval>, and
+C<xml_comment> are defined for the corresponding XML elements. If you
+want to customize further you can configure the tags directly, for
+example:
+
+    $xmlviewer->tagConfigure('xml_comment', -foreground => "white",
+			     -background => "red", -font => "Helvetica 6");
+
+
+=head2 METHODS
 
 =over 4
 
@@ -529,11 +571,19 @@ a file and -text to insert an XML string.
 
 =item DumpXML
 
-Dump the contents of an Tk::Text widget into an XML string, which can
-be used as input for the XMLViewer widget. Use the static variant for
-Tk::Text widgets and the method for XMLViewer widgets.
+Dump the contents of an C<Tk::Text> widget into an XML string. This is
+meant as a alternative to the C<Tk::Text::dump> method (in fact,
+C<DumpXML> is implemented with the help of C<dump>).
+
+The output of C<DumpXML> can be used as input for the XMLViewer
+widget, which is useful in debugging C<Tk::Text> tags.
+
+Use the static variant of C<DumpXML> for C<Tk::Text> widgets and the
+method variant for C<XMLViewer> widgets.
 
     $xml_string1 = Tk::XMLViewer::DumpXML($text_widget);
+    $xmlviewer_widget->insertXML($xml_string1);
+
     $xml_string2 = $xmlviewer->DumpXML;
 
 =item SetIndent
