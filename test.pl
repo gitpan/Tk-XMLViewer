@@ -6,13 +6,14 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..2\n"; }
+BEGIN { $^W = 1; $| = 1; print "1..9\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Tk;
 use Tk::XMLViewer;
 use XML::Parser;
 $loaded = 1;
-print "ok 1\n";
+my $ok = 1;
+print "ok " . $ok++ . "\n";
 
 ######################### End of black magic.
 
@@ -24,10 +25,48 @@ print "ok 1\n";
 $file = "test.xml";
 
 $top = new MainWindow;
+$t2 = $top->Toplevel;
+$t2->withdraw;
+
 $xmlwidget = $top->Scrolled('XMLViewer',
 			    -scrollbars => "osoe")->pack;
 $xmlwidget->insertXML(-file => $file);
 $xmlwidget->XMLMenu;
+
+my $xml_string1 = $xmlwidget->DumpXML;
+if ($xml_string1 eq '') { print "not " } print "ok ". $ok++ . "\n";
+
+my $xmlwidget2 = $t2->XMLViewer->pack;
+if (!$xmlwidget2->isa('Tk::XMLViewer')) {print "not "} print "ok ".$ok++."\n";
+
+$xmlwidget2->insertXML(-text => <<EOF);
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE ecollateral SYSTEM "test.dtd">
+<book title="test">
+</book>
+EOF
+$xmlwidget2->destroy;
+
+# test internals
+
+$xmlwidget->ShowHideRegion(1, -open => 0);
+$xmlwidget->ShowHideRegion(1, -open => 1);
+$xmlwidget->OpenCloseDepth(1, 0);
+$xmlwidget->OpenCloseDepth(1, 1);
+$xmlwidget->ShowToDepth(0);
+$xmlwidget->ShowToDepth(undef);
+if (!defined &Tk::XMLViewer::_convert_from_unicode) {
+    print "not ";
+}
+print "ok " . $ok++ . "\n";
+
+my %info = %{ $xmlwidget->GetInfo };
+if ($info{Version} ne "1.0")         { print "not " } print "ok ". $ok++ ."\n";
+if ($info{Encoding} ne "ISO-8859-1") { print "not " } print "ok ". $ok++ ."\n";
+if ($info{Name} ne "ecollateral")    { print "not " } print "ok ". $ok++ ."\n";
+if ($info{Sysid} ne "test.dtd")      { print "not " } print "ok ". $ok++ ."\n";
+
+# definitions for interactive use...
 
 $top->bind("<P>" => sub {
     require Config;
@@ -67,6 +106,9 @@ $f->Button(-text => "Not OK",
 
 $top->update;
 $top->waitVariable(\$not);
+
+$t2->destroy;
+
 #MainLoop;
 
-print "${not}ok 2\n";
+print "${not}ok " . $ok++ . "\n";

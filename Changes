@@ -1,5 +1,18 @@
 Revision history for Perl extension Tk::XMLViewer.
 
+0.12
+	- pod additions
+	- bug fixes
+	- GetInfo method
+
+0.11
+	- fixed call order of MainWindow and GetOptions in tkxmlview
+
+0.10
+	- Unicode handling on older perls with Unicode::String enabled
+	- new Info dialog with DTD and other information
+	- comments are also shown
+
 0.09
 	- limited Unicode handling
 	- fixed numerous bugs
