@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Tk-XMLViewer
-version:             0.18_91
+version:             0.18_92
 abstract:            ~
 license:             ~
 generated_by:        ExtUtils::MakeMaker version 6.36
