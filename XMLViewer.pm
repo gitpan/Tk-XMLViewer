@@ -1,10 +1,10 @@
 # -*- perl -*-
 
 #
-# $Id: XMLViewer.pm,v 1.41 2008/12/02 22:39:28 eserte Exp $
+# $Id: XMLViewer.pm,v 1.42 2009/11/10 18:47:50 eserte Exp $
 # Author: Slaven Rezic
 #
-# Copyright © 2000, 2003, 2004, 2007 Slaven Rezic. All rights reserved.
+# Copyright © 2000, 2003, 2004, 2007, 2009 Slaven Rezic. All rights reserved.
 # This package is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
 #
@@ -33,7 +33,7 @@ BEGIN {
 
 Construct Tk::Widget 'XMLViewer';
 
-$VERSION = '0.20';
+$VERSION = '0.21';
 
 my($curr_w); # ugly, but probably faster than defining handlers for everything
 my $curr_xpath;
@@ -56,7 +56,7 @@ sub Populate {
     my $tagcolor     = delete $args->{-tagcolor}     || 'red';
     my $attrkeycolor = delete $args->{-attrkeycolor} || 'green4';
     my $attrvalcolor = delete $args->{-attrvalcolor} || 'DarkGreen';
-    my $commentcolor = delete $args->{-commentcolor} || 'gold2';
+    my $commentcolor = delete $args->{-commentcolor} || 'gold3';
 
     $w->tagConfigure('xml_tag',
 		     -foreground => $tagcolor,
